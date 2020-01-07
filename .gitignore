@@ -1,2 +1,6 @@
 */work/*
-*/results/*
+*results*
+*report.html*
+*trace.txt*
+*.nextflow/*
+*.nextflow*
