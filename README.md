@@ -1,6 +1,4 @@
-# nextflow_pipelines
-
-A collection of nextflow pipelines for data analysis
+# Nextflow Pipelines for Data Analysis
 
 ## Requirements
 ```
@@ -28,10 +26,15 @@ ln -s ~/nextflow_pipelines/sge_exec/nextflow.config .
 
 # run analysis
 nextflow run alignment.nf
-```
 
-### Note
-Make sure to adjust nextflow.config to point to correct meta data directory
+########
+# Note #
+########
+
+# Make sure to adjust nextflow.config 
+# to point to correct meta data directory
+
+```
 
 ## Alignment Pipeline
 QC Filtering, Alignment, Read Group addition, Base Recalibration, and alignment and sequencing Metrics calculated.
