@@ -1,11 +1,22 @@
 
 // Script Parameters
 
+ref = file(
+	params.reference
+	)
 
-ref = file(params.reference)
-known_sites = file(params.known_sites)
-interval_list = file(params.intervals)
-regions = file(params.regions)
+known_sites = file(
+	params.known_sites
+	)
+
+interval_list = file(
+	params.interval_list
+	)
+
+regions = file(
+	params.regions
+	)
+
 
 clusterOptions_single = "-S /bin/bash -cwd -q long.q -j y"
 clusterOptions_multi = clusterOptions_single.concat(" -pe smp ${params.threads}")
@@ -56,7 +67,6 @@ process fastp {
 	"""
 }
 
-
 // bwa based alignment
 process bwa_align {
 
@@ -72,11 +82,13 @@ process bwa_align {
 	set pair_id, "${pair_id}.bam" into rg_bam_list
 
 	script:
+	
 	"""
 	#!/usr/bin/env bash
 
 	# alignment
-	bwa mem -t ${params.threads} $ref ${reads} | samtools view -b -o temp.bam
+	bwa mem -t ${params.threads} $ref ${reads} | \
+		samtools view -b -o temp.bam
 
 	# sorting reads
 	samtools sort -@ ${params.threads} -o sorted.bam temp.bam
@@ -95,7 +107,6 @@ process bwa_align {
 	"""
 }
 
-
 // gatk base recalibrator
 process base_recal {
 
@@ -112,12 +123,12 @@ process base_recal {
 	set pair_id, file(rg_bam) from rg_bam_list
 
 	output:
-	set pair_id, "${pair_id}_recal.bam", "${pair_id}_recal.bam.bai" into recal_for_gvcf, recal_for_metrics
+	set pair_id, "${pair_id}_recal.bam" into recal_for_gvcf, recal_for_metrics
 	file("${pair_id}.recal")
-	// file("${pair_id}_recal.bam.bai")
+	file("${pair_id}_recal.bam.bai")
 
 	script:
-	"""	
+	"""
 	#!/usr/bin/env bash
 
     gatk BaseRecalibrator \
@@ -131,11 +142,10 @@ process base_recal {
         -I ${rg_bam} \
         -O ${pair_id}_recal.bam
 
-    samtools index -@ ${params.threads} ${pair_id}_recal.bam
+    samtools index -@ {threads} ${pair_id}_recal.bam
 
 	"""
 }
-
 
 // flagstat metrics and coverage statistics
 process metrics {
@@ -145,7 +155,7 @@ process metrics {
 	clusterOptions = clusterOptions_multi.concat(" -o metrics.log")
 
 	input:
-	set pair_id, file(recal_bam), file(recal_bai) from recal_for_metrics
+	set pair_id, file(recal_bam) from recal_for_metrics
 
 	output:
 	file("${pair_id}.flagstat")
@@ -170,18 +180,20 @@ process metrics {
 	"""
 }
 
+// call gvcf on intervals independently
 process call_gvcf {
 	
-	publishDir "$params.outdir/$pair_id"
+	publishDir "$params.outdir/variants/intervals/${region}"
 
 	clusterOptions = clusterOptions_multi.concat(" -o call_gvcf.log")
 
 	input:
-	set pair_id, file(recal_bam), file(recal_bai) from recal_for_gvcf
+	set pair_id, file(recal_bam) from recal_for_gvcf
+	each region from regions.readLines()
 
 	output:
-	file "${pair_id}.g.vcf" into gvcf_list
-	file "${pair_id}.g.vcf.idx" into gvcf_idx_list
+	file "${region.replace(':', '-')}.${pair_id}.g.vcf" into gvcf_list
+	file "${region.replace(':', '-')}.${pair_id}.g.vcf.idx" into gvcf_index_list
 
 	script:
 	"""
@@ -192,27 +204,46 @@ process call_gvcf {
 		-R ${ref} \
 		-I ${recal_bam} \
 		--ERC GVCF \
-		-L ${interval_list} \
-		-O ${pair_id}.g.vcf
+		-L ${region} \
+		-O ${region.replace(':', '-')}.${pair_id}.g.vcf
 
-	# index genomic vcf
-	gatk IndexFeatureFile -F ${pair_id}.g.vcf
+	# index gvcf
+	gatk IndexFeatureFile -F ${region.replace(':', '-')}.${pair_id}.g.vcf
 
 	"""
 }
 
+// Create channel for interval and all gvcfs related
+gvcf_list
+  .map { 
+  	gvcf -> tuple(gvcf.getSimpleName(), gvcf) 
+  }
+  .groupTuple()
+  .set { grouped_vcfs }
+
+// Create channel for interval and all indices related
+gvcf_index_list
+  .map { 
+  	gvcf -> tuple(gvcf.getSimpleName(), gvcf) 
+  }
+  .groupTuple()
+  .set { grouped_idx }
+
+// genotype each interval independently
 process joint_genotype {
 
-	publishDir "$params.outdir/variants"
+	publishDir "$params.outdir/variants/merged/${region}"
 
-	clusterOptions = clusterOptions_multi.concat(" -o joint_genotyping.log")
+	clusterOptions = clusterOptions_single.concat(" -o joint_geno.log")
 
 	input:
-    file sample_gvcf from gvcf_list.collect()
-    file sample_index from gvcf_idx_list.collect()
+	set region, file(gvcf) from grouped_vcfs
+	set region2, file(idx) from grouped_idx
 
 	output:
-	file "variant_set.vcf"
+	file "${region}.merged.vcf" into merged_regions
+	file "${region}.merged.vcf.idx" into merged_regions_idx
+	file "${region}_gendb"
 
 	script:
 	"""
@@ -220,22 +251,52 @@ process joint_genotype {
 
 	# Load gvcfs into a gendb 
 	gatk GenomicsDBImport \
-		--genomicsdb-workspace-path gendb \
-		\$(while read interval; do echo "-L \$interval"; done < ${regions}) \
-		\$(for v in \$(ls *.vcf); do echo "-V \$v"; done)	
+		--genomicsdb-workspace-path ${region}_gendb \
+		-L ${region.replaceFirst('-' , ':')} \
+		\$(for v in ${gvcf}; do echo "-V \$v"; done)
+
 
 	# genotype
 	gatk GenotypeGVCFs \
 	    -R ${ref} \
-	    -V gendb://gendb \
+	    -V gendb://${region}_gendb \
 	    -G StandardAnnotation \
 	    --new-qual true \
-	    -O variant_set.vcf
+	    -L ${region.replaceFirst('-' , ':')} \
+	    -O ${region}.merged.vcf 
 
 	"""
 }
 
+// Channel of sorted regions
+merged_regions
+	.toSortedList()
+	.set {sorted_merged_regions}
 
+// Concatenated merged regions and prepare final output file
+process concatenate_vcfs {
 
-// 	"""
-// }
+	publishDir "$params.outdir/variants"
+
+	clusterOptions = clusterOptions_single.concat(" -o concat.log")
+
+	input:
+	file merged_region from sorted_merged_regions.collect()
+	file merged_region_idx from merged_regions_idx.collect()
+
+	output:
+	file "sampleset.vcf.gz"
+	file "sampleset.vcf.gz.csi"
+
+	script:
+	"""
+	#!/usr/bin/env bash
+
+	# collect and sort
+	bcftools concat *.merged.vcf | bcftools sort -Oz -o "sampleset.vcf.gz"
+
+	# index
+	bcftools index "sampleset.vcf.gz"
+
+	"""
+}

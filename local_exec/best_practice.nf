@@ -38,8 +38,6 @@ process fastp {
 			else filename
 		}
 
-	// clusterOptions = clusterOptions_multi.concat(" -o qc.log")
-
 	input:
 	set pair_id, file(reads) from read_pairs
 
