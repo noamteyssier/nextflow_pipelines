@@ -6,6 +6,9 @@ known_sites = file(params.known_sites)
 interval_list = file(params.interval_list)
 
 
+clusterOptions_single = "-S /bin/bash -cwd -q long.q -j y"
+clusterOptions_multi = clusterOptions_single.concat(" -pe smp ${params.threads}")
+
 /*
 Create 'read_pairs' channel that emits for each read pair a 
 tuple containing 3 elements: pair_id, R1, R2
@@ -25,6 +28,8 @@ process fastp {
 			else if (filename.indexOf("_fastp") > 0) "metrics/$filename"
 			else filename
 		}
+
+	clusterOptions = clusterOptions_multi.concat(" -o qc.log")
 
 	input:
 	set pair_id, file(reads) from read_pairs
@@ -55,10 +60,11 @@ process fastp {
 process bwa_align {
 
 	publishDir "${params.outdir}/$pair_id"
+
+	clusterOptions = clusterOptions_multi.concat(" -o align.log")
 	
 	input:
 	set pair_id, file(reads) from filtered_reads
-
 
 	output:
 	set pair_id, "${pair_id}.bam" into rg_bam_list
@@ -100,6 +106,8 @@ process base_recal {
 			else null
 		}
 
+	clusterOptions = clusterOptions_multi.concat(" -o recal.log")
+
 	input:
 	set pair_id, file(rg_bam) from rg_bam_list
 
@@ -134,6 +142,8 @@ process metrics {
 
 	publishDir "${params.outdir}/$pair_id/metrics"
 
+	clusterOptions = clusterOptions_multi.concat(" -o metrics.log")
+
 	input:
 	set pair_id, file(recal_bam) from recal_bam_list
 
@@ -158,4 +168,3 @@ process metrics {
 
 	"""
 }
-

@@ -7,6 +7,7 @@
 fastp
 bwa
 samtools
+bcftools
 GATK (4.0)
 
 ```
