@@ -6,7 +6,7 @@ known_sites = file(params.known_sites)
 interval_list = file(params.interval_list)
 
 
-clusterOptions_single = "-S /bin/bash -cwd -q long.q -j y"
+clusterOptions_single = "-S /bin/bash -cwd -q long.q -j y -l scratch=75G"
 clusterOptions_multi = clusterOptions_single.concat(" -pe smp ${params.threads}")
 
 /*
