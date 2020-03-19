@@ -15,5 +15,3 @@
 @SQ	SN:Pf3D7_14_v3	LN:3291936	M5:2bfeb85b8b4486aa4b03c3cb4dc56dad	UR:file:/home/noam/bin/nextflow_pipelines/data/pf_meta/genome/Pfalciparum.genome.fasta
 @SQ	SN:Pf3D7_API_v3	LN:34250	M5:c4130986193207249fb4af4ddfa5b673	UR:file:/home/noam/bin/nextflow_pipelines/data/pf_meta/genome/Pfalciparum.genome.fasta
 @SQ	SN:Pf_M76611	LN:5967	M5:ae96d861208f8c5912393e1441319d64	UR:file:/home/noam/bin/nextflow_pipelines/data/pf_meta/genome/Pfalciparum.genome.fasta
-@SQ	SN:M76611	LN:5967	M5:ae96d861208f8c5912393e1441319d64	UR:file:/home/noam/bin/nextflow_pipelines/data/pf_meta/genome/Pfalciparum.genome.fasta
-@SQ	SN:PFC10_API_IRAB	LN:34242	M5:ea11bbb35c7871b0b47bde08f4e62f59	UR:file:/home/noam/bin/nextflow_pipelines/data/pf_meta/genome/Pfalciparum.genome.fasta
