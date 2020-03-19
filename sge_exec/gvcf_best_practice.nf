@@ -5,8 +5,14 @@ ref = file(
 	params.reference
 	)
 
-known_sites = file(
-	params.known_sites
+gc_3d7_hb3 = file(
+	params.gencross_3d7_hb3
+	)
+gc_7g8_gb4 = file(
+	params.gencross_7g8_gb4
+	)
+gc_hb3_dd2 = file(
+	params.gencross_hb3_dd2
 	)
 
 interval_list = file(
@@ -135,7 +141,9 @@ process base_recal {
         -I ${rg_bam} \
         -O ${pair_id}.recal \
         -R ${ref} \
-        --known-sites ${known_sites}
+        --known-sites ${gc_hb3_dd2} \
+        --known-sites ${gc_7g8_gb4} \
+        --known-sites ${gc_hb3_dd2}
 
     gatk ApplyBQSR \
         -bqsr ${pair_id}.recal \
