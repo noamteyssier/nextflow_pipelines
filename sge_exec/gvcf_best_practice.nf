@@ -130,8 +130,8 @@ process base_recal {
 
 	output:
 	set pair_id, "${pair_id}_recal.bam" into recal_for_gvcf, recal_for_metrics
+	set pair_id, "${pair_id}_recal.bam.bai" into recal_idx_for_gvcf
 	file("${pair_id}.recal")
-	file("${pair_id}_recal.bam.bai")
 
 	script:
 	"""
@@ -197,6 +197,7 @@ process call_gvcf {
 
 	input:
 	set pair_id, file(recal_bam) from recal_for_gvcf
+	set pair_id, file(recal_bai) from recal_idx_for_gvcf
 	each region from regions.readLines()
 
 	output:
